@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schloss-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schloss
+  template:
+    metadata:
+      labels:
+        app: schloss
+    spec:
+      containers:
+        - name: schloss
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+          envFrom:
+            - configMapRef:
+                name: schloss-configmap
+            - secretRef:
+                name: schloss-secret

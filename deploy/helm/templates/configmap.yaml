@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: schloss-configmap
+data:
+  DOMAIN: {{ .Values.environment.DOMAIN }}
+  SERVICES: {{ .Values.environment.SERVICES | quote }}
+  TOKEN_NAME: {{ .Values.environment.TOKEN_NAME }}
+  SCHLUESSEL_ENDPOINT: {{ .Values.environment.SCHLUESSEL_ENDPOINT }}
+  HTTP_HOST: {{ .Values.environment.HTTP_HOST }}
+  HTTP_PORT: {{ .Values.environment.HTTP_PORT }}

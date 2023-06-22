@@ -1,0 +1,19 @@
+image:
+  repository: ghcr.io/jsbaudler/schloss
+  tag: latest
+
+environment:
+  DOMAIN: ".127.0.0.1"
+  SERVICES: '[["Service1", "http://127.0.0.1:8081"],["Service2", "http://127.0.0.1:8081"]]'
+  TOKEN_NAME: "test_auth_token"
+  SCHLUESSEL_ENDPOINT: "http://127.0.0.1:8080/register"
+  HTTP_HOST: "0.0.0.0"
+  HTTP_PORT: "8080"
+
+service:
+  port: 8080
+  targetPort: 8080
+
+secret:
+  tokenValue: "abcdefgh1234"
+  sharedSecret: "shared_secret"
