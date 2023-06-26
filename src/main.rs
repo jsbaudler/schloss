@@ -1,4 +1,4 @@
-use actix_web::{middleware::Logger, get, post, web, App, HttpResponse, HttpServer};
+use actix_web::{middleware::Logger, get, post, web, App, HttpResponse, HttpServer, HttpRequest};
 use actix_web::cookie::time::Duration;
 use env_logger::Env;
 use serde_json::json;
@@ -12,23 +12,67 @@ struct AuthRequest {
 }
 
 #[get("/")]
-async fn index() -> HttpResponse {
-    let rendered = r#"
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title>Schloss</title>
-        </head>
-        <body>
-            <h1>This is Schloss 🔒</h1>
-        </body>
-        </html>
-    "#;
+async fn index(req: HttpRequest) -> HttpResponse {
 
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(rendered)
+    let token_name = env::var("TOKEN_NAME").unwrap_or("test_auth_token".to_string());
+    let token_value = env::var("TOKEN_VALUE").unwrap_or("abcdefgh1234".to_string());
+
+    let auth_cookie = req.cookie(&token_name);
+
+    if let Some(cookie) = auth_cookie {
+        if cookie.value() == token_value {
+            let services = env::var("SERVICES").unwrap_or_else(|_| {
+                json!([
+                    ["Service1", "http://127.0.0.1:8081"],
+                    ["Service2", "http://127.0.0.1:8082"]
+                ])
+                .to_string()
+            });
+
+            let rendered = format!(
+                r#"
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>🔒 Schloss 🔒</title>
+                </head>
+                <body>
+                    <h1>This is Schloss 🔒</h1>
+                    <h2>Services:</h2>
+                    <ul>
+                        {}
+                    </ul>
+                </body>
+                </html>
+            "#,
+                render_services(&services)
+            );
+
+            return HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(rendered);
+        }
+    }
+
+    HttpResponse::Unauthorized().body("Unauthorized")
+}
+
+fn render_services(services: &str) -> String {
+    let services_list: Vec<Vec<String>> = serde_json::from_str(services).unwrap_or_default();
+    let mut rendered_services = String::new();
+
+    for service in services_list {
+        let service_name = &service[0];
+        let service_url = &service[1];
+        rendered_services.push_str(&format!(
+            "<li><a href='http://{}'>{}</a></li>",
+            service_url, 
+            service_name
+        ));
+    }
+
+    rendered_services
 }
 
 // generate the auth cookie for the domain schloss is deployed on
