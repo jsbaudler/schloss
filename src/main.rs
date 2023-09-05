@@ -1,19 +1,22 @@
-use actix_web::{middleware::Logger, get, post, web, App, HttpResponse, HttpServer, HttpRequest};
 use actix_web::cookie::time::Duration;
+use actix_web::{get, middleware::Logger, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use env_logger::Env;
-use serde_json::json;
 use serde::Deserialize;
+use serde_json::json;
 use std::{env, process};
 
+/// Request body for the "/generate_auth_cookie" route
 #[derive(Deserialize)]
 struct AuthRequest {
     shared_secret: String,
     service_url: String,
 }
 
+/// Route handler for "/"
+/// If the request includes a valid auth cookie, it will respond with a list of services.
+/// Otherwise, it will respond with "Unauthorized".
 #[get("/")]
 async fn index(req: HttpRequest) -> HttpResponse {
-
     let token_name = env::var("TOKEN_NAME").unwrap_or("test_auth_token".to_string());
     let token_value = env::var("TOKEN_VALUE").unwrap_or("abcdefgh1234".to_string());
 
@@ -58,6 +61,7 @@ async fn index(req: HttpRequest) -> HttpResponse {
     HttpResponse::Unauthorized().body("Unauthorized")
 }
 
+/// Generates HTML list of services
 fn render_services(services: &str) -> String {
     let services_list: Vec<Vec<String>> = serde_json::from_str(services).unwrap_or_default();
     let mut rendered_services = String::new();
@@ -67,15 +71,16 @@ fn render_services(services: &str) -> String {
         let service_url = &service[1];
         rendered_services.push_str(&format!(
             "<li><a href='http://{}'>{}</a></li>",
-            service_url, 
-            service_name
+            service_url, service_name
         ));
     }
 
     rendered_services
 }
 
-// generate the auth cookie for the domain schloss is deployed on
+/// Route handler for "/generate_auth_cookie"
+/// If the request includes the correct shared secret, it will generate an auth cookie and redirect to the service URL.
+/// Otherwise, it will respond with "Unauthorized".
 #[post("/generate_auth_cookie")]
 async fn generate_auth_cookie(form: web::Form<AuthRequest>) -> HttpResponse {
     let expected_shared_secret = env::var("SHARED_SECRET").unwrap_or("shared_secret".to_string());
@@ -83,7 +88,6 @@ async fn generate_auth_cookie(form: web::Form<AuthRequest>) -> HttpResponse {
     let service_url = form.service_url.clone();
 
     if provided_shared_secret == expected_shared_secret {
-
         log::info!("Authorized request detected.");
 
         let domain = env::var("DOMAIN").unwrap_or_else(|_| "127.0.0.1".to_string());
@@ -108,17 +112,19 @@ async fn generate_auth_cookie(form: web::Form<AuthRequest>) -> HttpResponse {
         return response;
     }
 
-    log::warn!("Authorized Request detected.");
+    log::warn!("Unauthorized Request detected.");
 
     HttpResponse::Unauthorized().body("Unauthorized")
 }
 
-// register the current schloss with the schluessel entrypoint
+/// Registers the current Schloss instance with the Schluessel entrypoint
 async fn register_instance() -> Result<(), reqwest::Error> {
     let schluessel_endpoint = env::var("SCHLUESSEL_ENDPOINT")
         .unwrap_or_else(|_| "http://127.0.0.1:8080/register".to_string());
 
-    log::info!("Attempting to register Domain and Services with Schluessel at {schluessel_endpoint}");
+    log::info!(
+        "Attempting to register Domain and Services with Schluessel at {schluessel_endpoint}"
+    );
 
     let domain = env::var("DOMAIN").unwrap_or_else(|_| "127.0.0.1".to_string());
     let services = env::var("SERVICES").unwrap_or_else(|_| {
@@ -143,6 +149,7 @@ async fn register_instance() -> Result<(), reqwest::Error> {
     Ok(())
 }
 
+/// Starts the server
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     // initialize logging
